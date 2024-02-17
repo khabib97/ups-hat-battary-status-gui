@@ -1,6 +1,6 @@
 # Battery Status GUI Application
 
-This is a simple GUI application for Raspberry Pi that displays the battery status. It uses the INA219 sensor to measure the battery voltage, current, power, and percentage. The application is written in Python and uses the Tkinter library for the GUI.
+This is a simple GUI application for **Raspberry Pi** that displays the battery status. It uses the INA219 sensor to measure the battery voltage, current, power, and percentage.
 
 ## Dependencies
 
@@ -26,4 +26,4 @@ Run the script using Python:
 python3 battary_status.py
 ```
 
-**Note: Tested on [Waveshare UPS HAT B](https://www.waveshare.com/wiki/UPS_HAT_(B)#Document)** 
+**Note: You need to have the INA219 sensor connected to your Raspberry Pi. This code is tested with the [Waveshare UPS HAT B](https://www.waveshare.com/wiki/UPS_HAT_(B)#Document) board.**
