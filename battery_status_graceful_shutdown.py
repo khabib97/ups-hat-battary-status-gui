@@ -1,12 +1,14 @@
+import datetime
+import logging
+import queue
+import signal
 import tkinter as tk
 from tkinter import ttk
-from INA219 import INA219
 import time
-import logging
 import threading
-import signal
-import queue
 import os
+
+from INA219 import INA219
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,22 +26,19 @@ signal.signal(signal.SIGALRM, timeout_handler)
 
 
 class BatteryStatus:
-    __slots__ = ['root', 'voltage_label', 'current_label', 'power_label', 'percent_label', 'queue']
+    __slots__ = ['root', 'table', 'queue', 'update_interval']
 
-    def __init__(self):
+    def __init__(self, update_interval=180):
         self.root = tk.Tk()
         self.root.title("Battery Status")
 
-        self.voltage_label = ttk.Label(self.root, text="")
-        self.voltage_label.pack()
-        self.current_label = ttk.Label(self.root, text="")
-        self.current_label.pack()
-        self.power_label = ttk.Label(self.root, text="")
-        self.power_label.pack()
-        self.percent_label = ttk.Label(self.root, text="")
-        self.percent_label.pack()
+        self.table = ttk.Treeview(self.root, columns=('Parameter', 'Value'), show='headings')
+        self.table.grid(row=0, column=0, sticky='nsew')  # Place the table at the top of the window
+        for col in ('Parameter', 'Value'):
+            self.table.heading(col, text=col)
 
         self.queue = queue.Queue()
+        self.update_interval = update_interval  # update interval in seconds
 
     def update_status(self):
         """Update the battery status."""
@@ -56,31 +55,47 @@ class BatteryStatus:
                 if (p > 100): p = 100
                 if (p < 0): p = 0
 
+                # Get the current time
+                now = datetime.datetime.now()
+                # Format the time as a string
+                now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
                 # Put the data into the queue
-                self.queue.put((bus_voltage, current, power, p))
+                self.queue.put((bus_voltage, current, power, p, now_str))
 
                 # Reset the alarm
                 signal.alarm(0)
 
+                # If battery status is less than 5%, shutdown the system
+                if p < 5:
+                    os.system('shutdown -h +1')  # Shutdown after 1 minute
+
             except TimeoutException:
                 logging.error('Function call timed out')
-                continue  # continue the loop if function call timed out
 
-            time.sleep(10)
+            # Sleep for the update interval
+            time.sleep(self.update_interval)
 
     def update_gui(self):
         """Update the GUI with the data from the queue."""
         try:
             # Get the data from the queue
-            bus_voltage, current, power, p = self.queue.get_nowait()
+            bus_voltage, current, power, p, now_str = self.queue.get_nowait()
 
-            self.voltage_label.config(text=f"Voltage: {bus_voltage:.3f} V")
-            self.current_label.config(text=f"Current: {current / 1000:.6f} A")
-            self.power_label.config(text=f"Power: {power:.3f} W")
-            self.percent_label.config(text=f"Percent: {p:.1f}%")
+            # Clear the table
+            for row in self.table.get_children():
+                self.table.delete(row)
 
+            # Insert the data into the table
+            self.table.insert('', 'end', values=("Voltage", f"{bus_voltage:.3f} V"))
+            self.table.insert('', 'end', values=("Current", f"{current / 1000:.6f} A"))
+            self.table.insert('', 'end', values=("Power", f"{power:.3f} W"))
+            self.table.insert('', 'end', values=("Percent", f"{p:.1f}%"))
+            self.table.insert('', 'end', values=("Last Updated", now_str))
+
+            # If battery status is less than 5%, show a warning
             if p < 5:
-                os.system('shutdown -h now')
+                tk.messagebox.showwarning("Low Battery", "Battery is low. The system will shutdown in 1 minute.")
 
         except queue.Empty:
             pass
