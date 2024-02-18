@@ -1,10 +1,10 @@
+import logging
+import queue
+import signal
 import tkinter as tk
 from tkinter import ttk
+
 from INA219 import INA219
-import time
-import logging
-import threading
-import signal
 
 logging.basicConfig(level=logging.INFO)
 
@@ -20,11 +20,9 @@ def timeout_handler(signum, frame):  # Custom signal handler
 # Change the behavior of SIGALRM
 signal.signal(signal.SIGALRM, timeout_handler)
 
-'''
-This class is used to monitor the battery status
-'''
+
 class BatteryStatus:
-    __slots__ = ['root', 'voltage_label', 'current_label', 'power_label', 'percent_label']
+    __slots__ = ['root', 'voltage_label', 'current_label', 'power_label', 'percent_label', 'queue']
 
     def __init__(self):
         self.root = tk.Tk()
@@ -39,38 +37,55 @@ class BatteryStatus:
         self.percent_label = ttk.Label(self.root, text="")
         self.percent_label.pack()
 
+        self.queue = queue.Queue()
+
     def update_status(self):
         """Update the battery status."""
-        while True:
-            try:
-                # Set the signal to trigger after 5 seconds
-                signal.alarm(5)
-                ina219 = INA219(addr=0x42)
+        try:
+            # Set the signal to trigger after 5 seconds
+            signal.alarm(5)
+            ina219 = INA219(addr=0x42)
 
-                bus_voltage = ina219.getBusVoltage_V()
-                current = ina219.getCurrent_mA()
-                power = ina219.getPower_W()
-                p = (bus_voltage - 6) / 2.4 * 100
-                if (p > 100): p = 100
-                if (p < 0): p = 0
+            bus_voltage = ina219.getBusVoltage_V()
+            current = ina219.getCurrent_mA()
+            power = ina219.getPower_W()
+            p = (bus_voltage - 6) / 2.4 * 100
+            if (p > 100): p = 100
+            if (p < 0): p = 0
 
-                self.voltage_label.config(text=f"Voltage: {bus_voltage:.3f} V")
-                self.current_label.config(text=f"Current: {current / 1000:.6f} A")
-                self.power_label.config(text=f"Power: {power:.3f} W")
-                self.percent_label.config(text=f"Percent: {p:.1f}%")
+            # Put the data into the queue
+            self.queue.put((bus_voltage, current, power, p))
 
-                # Reset the alarm
-                signal.alarm(0)
+            # Reset the alarm
+            signal.alarm(0)
 
-            except TimeoutException:
-                logging.error('Function call timed out')
-                continue  # continue the loop if function call timed out
+        except TimeoutException:
+            logging.error('Function call timed out')
 
-            time.sleep(10)
+        # Schedule the next update
+        self.root.after(10000, self.update_status)  # 10000 milliseconds = 10 seconds
+
+    def update_gui(self):
+        """Update the GUI with the data from the queue."""
+        try:
+            # Get the data from the queue
+            bus_voltage, current, power, p = self.queue.get_nowait()
+
+            self.voltage_label.config(text=f"Voltage: {bus_voltage:.3f} V")
+            self.current_label.config(text=f"Current: {current / 1000:.6f} A")
+            self.power_label.config(text=f"Power: {power:.3f} W")
+            self.percent_label.config(text=f"Percent: {p:.1f}%")
+
+        except queue.Empty:
+            pass
+
+        # Schedule the next update
+        self.root.after(100, self.update_gui)
 
     def run(self):
         """Start the Tkinter event loop."""
-        threading.Thread(target=self.update_status, daemon=True).start()
+        self.update_status()
+        self.update_gui()
         self.root.mainloop()
 
 

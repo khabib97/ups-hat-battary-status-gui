@@ -1,12 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
-from tkinter import messagebox
 from INA219 import INA219
 import time
 import logging
 import threading
-import os
 import signal
+import queue
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,11 +22,9 @@ def timeout_handler(signum, frame):  # Custom signal handler
 # Change the behavior of SIGALRM
 signal.signal(signal.SIGALRM, timeout_handler)
 
-'''
-This class is used to monitor the battery status and shut down the computer when the battery level is below 5%.
-'''
+
 class BatteryStatus:
-    __slots__ = ['root', 'voltage_label', 'current_label', 'power_label', 'percent_label']
+    __slots__ = ['root', 'voltage_label', 'current_label', 'power_label', 'percent_label', 'queue']
 
     def __init__(self):
         self.root = tk.Tk()
@@ -40,6 +38,8 @@ class BatteryStatus:
         self.power_label.pack()
         self.percent_label = ttk.Label(self.root, text="")
         self.percent_label.pack()
+
+        self.queue = queue.Queue()
 
     def update_status(self):
         """Update the battery status."""
@@ -56,13 +56,8 @@ class BatteryStatus:
                 if (p > 100): p = 100
                 if (p < 0): p = 0
 
-                self.voltage_label.config(text=f"Voltage: {bus_voltage:.3f} V")
-                self.current_label.config(text=f"Current: {current / 1000:.6f} A")
-                self.power_label.config(text=f"Power: {power:.3f} W")
-                self.percent_label.config(text=f"Percent: {p:.1f}%")
-
-                if p < 5:
-                    os.system('shutdown -h now')
+                # Put the data into the queue
+                self.queue.put((bus_voltage, current, power, p))
 
                 # Reset the alarm
                 signal.alarm(0)
@@ -73,25 +68,31 @@ class BatteryStatus:
 
             time.sleep(10)
 
+    def update_gui(self):
+        """Update the GUI with the data from the queue."""
+        try:
+            # Get the data from the queue
+            bus_voltage, current, power, p = self.queue.get_nowait()
+
+            self.voltage_label.config(text=f"Voltage: {bus_voltage:.3f} V")
+            self.current_label.config(text=f"Current: {current / 1000:.6f} A")
+            self.power_label.config(text=f"Power: {power:.3f} W")
+            self.percent_label.config(text=f"Percent: {p:.1f}%")
+
+            if p < 5:
+                os.system('shutdown -h now')
+
+        except queue.Empty:
+            pass
+
+        # Schedule the next update
+        self.root.after(100, self.update_gui)
+
     def run(self):
         """Start the Tkinter event loop."""
-        ina219 = INA219(addr=0x42)
-        bus_voltage = ina219.getBusVoltage_V()
-        p = (bus_voltage - 6) / 2.4 * 100
-        if (p > 100): p = 100
-        if (p < 0): p = 0
-
-        if p < 5:
-            messagebox.showinfo("Alert", "Battery level is below 5%. The system will shut down in 1 minute.")
-            threading.Thread(target=self.shutdown_timer, daemon=True).start()
-
         threading.Thread(target=self.update_status, daemon=True).start()
+        self.update_gui()
         self.root.mainloop()
-
-    def shutdown_timer(self):
-        """Shut down the computer after 1 minute."""
-        time.sleep(60)
-        os.system('shutdown -h now')
 
 
 if __name__ == "__main__":
