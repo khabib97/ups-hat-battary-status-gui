@@ -22,8 +22,14 @@ pip install smbus
 ## Usage
 Run the script using Python:
 
+- For the battery status gui application:
 ```bash
 python3 battary_status.py
+```
+
+- For the battery status gui application and auto shutdown:
+```bash
+python3 battary_status_graceful_shutdown.py
 ```
 
 **Note: You need to have the INA219 sensor connected to your Raspberry Pi. This code is tested with the [Waveshare UPS HAT B](https://www.waveshare.com/wiki/UPS_HAT_(B)#Document) board.**

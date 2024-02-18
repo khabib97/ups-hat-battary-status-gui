@@ -1,9 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 from INA219 import INA219
 import time
 import logging
 import threading
+import os
 import signal
 
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +23,7 @@ def timeout_handler(signum, frame):  # Custom signal handler
 signal.signal(signal.SIGALRM, timeout_handler)
 
 '''
-This class is used to monitor the battery status
+This class is used to monitor the battery status and shut down the computer when the battery level is below 5%.
 '''
 class BatteryStatus:
     __slots__ = ['root', 'voltage_label', 'current_label', 'power_label', 'percent_label']
@@ -59,6 +61,9 @@ class BatteryStatus:
                 self.power_label.config(text=f"Power: {power:.3f} W")
                 self.percent_label.config(text=f"Percent: {p:.1f}%")
 
+                if p < 5:
+                    os.system('shutdown -h now')
+
                 # Reset the alarm
                 signal.alarm(0)
 
@@ -70,8 +75,23 @@ class BatteryStatus:
 
     def run(self):
         """Start the Tkinter event loop."""
+        ina219 = INA219(addr=0x42)
+        bus_voltage = ina219.getBusVoltage_V()
+        p = (bus_voltage - 6) / 2.4 * 100
+        if (p > 100): p = 100
+        if (p < 0): p = 0
+
+        if p < 5:
+            messagebox.showinfo("Alert", "Battery level is below 5%. The system will shut down in 1 minute.")
+            threading.Thread(target=self.shutdown_timer, daemon=True).start()
+
         threading.Thread(target=self.update_status, daemon=True).start()
         self.root.mainloop()
+
+    def shutdown_timer(self):
+        """Shut down the computer after 1 minute."""
+        time.sleep(60)
+        os.system('shutdown -h now')
 
 
 if __name__ == "__main__":
