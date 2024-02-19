@@ -94,9 +94,9 @@ class BatteryStatus:
             # self.table.insert('', 'end', values=("Power", f"{power:.3f} W"))
             self.table.insert('', 'end', values=("Percent", f"{p:.1f}%"))
             if current < 0:
-                self.table.insert('', 'end', values=("Battery", "Battery is discharging"))
+                self.table.insert('', 'end', values=("Battery", "Discharging"))
             else:
-                self.table.insert('', 'end', values=("Battery", "Battery is charging"))
+                self.table.insert('', 'end', values=("Battery", "Charging"))
 
             self.table.insert('', 'end', values=("Last Updated", now_str))
 
