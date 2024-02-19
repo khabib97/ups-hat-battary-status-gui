@@ -28,7 +28,7 @@ signal.signal(signal.SIGALRM, timeout_handler)
 class BatteryStatus:
     __slots__ = ['root', 'table', 'queue', 'update_interval']
 
-    def __init__(self, update_interval=180):
+    def __init__(self, update_interval=60):
         self.root = tk.Tk()
         self.root.title("Battery Status")
 
@@ -66,6 +66,13 @@ class BatteryStatus:
                 # Reset the alarm
                 signal.alarm(0)
 
+                # Append the battery status to the log file
+                with open('battery_status.log', 'a') as f:
+                    if current < 0:
+                        f.write(f"{now_str} - Percent {p}, Battery is discharging\n")
+                    else:
+                        f.write(f"{now_str} - Percent {p}, Battery is charging\n")
+
                 # If battery status is less than 5%, shutdown the system
                 if p < 5:
                     os.system('shutdown -h +1')  # Shutdown after 1 minute
@@ -87,10 +94,14 @@ class BatteryStatus:
                 self.table.delete(row)
 
             # Insert the data into the table
-            self.table.insert('', 'end', values=("Voltage", f"{bus_voltage:.3f} V"))
-            self.table.insert('', 'end', values=("Current", f"{current / 1000:.6f} A"))
-            self.table.insert('', 'end', values=("Power", f"{power:.3f} W"))
+            # self.table.insert('', 'end', values=("Voltage", f"{bus_voltage:.3f} V"))
+            # self.table.insert('', 'end', values=("Current", f"{current / 1000:.6f} A"))
+            # self.table.insert('', 'end', values=("Power", f"{power:.3f} W"))
             self.table.insert('', 'end', values=("Percent", f"{p:.1f}%"))
+            if current < 0:
+                self.table.insert('', 'end', values=("Battery", "Battery is discharging"))
+            else:
+                self.table.insert('', 'end', values=("Battery", "Battery is charging"))
             self.table.insert('', 'end', values=("Last Updated", now_str))
 
             # If battery status is less than 5%, show a warning
@@ -101,7 +112,7 @@ class BatteryStatus:
             pass
 
         # Schedule the next update
-        self.root.after(100, self.update_gui)
+        self.root.after(300, self.update_gui)
 
     def run(self):
         """Start the Tkinter event loop."""
