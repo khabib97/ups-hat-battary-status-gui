@@ -69,9 +69,9 @@ class BatteryStatus:
                 # Append the battery status to the log file
                 with open('battery_status.log', 'a') as f:
                     if current < 0:
-                        f.write(f"{now_str} - Percent {p}, Battery is discharging\n")
+                        f.write(f"{now_str} - Percent {round(p,2)}, Battery is discharging\n")
                     else:
-                        f.write(f"{now_str} - Percent {p}, Battery is charging\n")
+                        f.write(f"{now_str} - Percent {round(p,2)}, Battery is charging\n")
 
                 # If battery status is less than 5%, shutdown the system
                 if p < 5:

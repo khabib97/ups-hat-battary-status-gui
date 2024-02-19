@@ -68,9 +68,9 @@ class BatteryStatus:
                 # Append the battery status to the log file
                 with open('battery_status.log', 'a') as f:
                     if current < 0:
-                        f.write(f"{now_str} - Percent {p}, Battery is discharging\n")
+                        f.write(f"{now_str} - Percent {round(p,2)}, Battery is discharging\n")
                     else:
-                        f.write(f"{now_str} - Percent {p}, Battery is charging\n")
+                        f.write(f"{now_str} - Percent {round(p,2)}, Battery is charging\n")
 
             except TimeoutException:
                 logging.error('Function call timed out')
