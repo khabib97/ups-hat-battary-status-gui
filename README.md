@@ -27,7 +27,8 @@ Run the script using Python:
 python3 battary_status.py
 ```
 
-- For the battery status gui application and shutdown the Raspberry Pi when the battery is low gracefully:
+- For the battery status gui application and shutdown the Raspberry Pi when the battery is low gracefully.
+Not recommended to run this script. It is under development and not throughly tested.
 ```bash
 python3 battary_status_graceful_shutdown.py
 ```
